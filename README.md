@@ -59,7 +59,7 @@ The training looks like:
 We apply convolutional neural networks using the log mel spectrogram of 4 channels audio as input. The targets are onset and offset times, elevation and azimuth of sound events. 
 
 ## Results
-For a CNN with 9 layers, the training takes approximately 200 ms / iteration on a single card GTX Titan Xp GPU. The model is trained for 5000 iterations. The training looks like:
+To train a CNN with 9 layers and a mini-batch size of 32, the training takes approximately 200 ms / iteration on a single card GTX Titan Xp GPU. The model is trained for 5000 iterations. The training looks like:
 
 <pre>
 Load data time: 90.292 s
