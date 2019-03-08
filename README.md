@@ -113,7 +113,7 @@ If you met running out of GPU memory error, then try to reduce batch_size.
 ## License
 File evaluation_tools/cls_feature_class.py is under TUT_LICENSE. 
 
-All other files except other than utils/cls_feature_class.py is under MIT_LICENSE. 
+All other files except utils/cls_feature_class.py is under MIT_LICENSE. 
 
 ## External link
 
