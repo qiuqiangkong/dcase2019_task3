@@ -1,6 +1,6 @@
 # DCASE 2019 Task 3 Sound Event Localization and Detection
 
-DCASE 2018 Task 1 Sound Event Localization and Detection is a task to jointly localize and recognize individual sound events and their respective temporal onset and offset times. More description of this task can be found in http://dcase.community/challenge2019/task-sound-event-localization-and-detection.
+DCASE 2019 Task3 Sound Event Localization and Detection is a task to jointly localize and recognize individual sound events and their respective temporal onset and offset times. More description of this task can be found in http://dcase.community/challenge2019/task-sound-event-localization-and-detection.
 
 ## DATASET
 The dataset can be downloaded from http://dcase.community/challenge2019/task-sound-event-localization-and-detection. The dataset contains 400 audio recordings, one minute long recordings sampled at 48 kHz. Two formats of audio, First-Order Ambisonic (FOA) and microphone array (MIC) are provided for each audio recording. Both of FOA and MIC are 4 channels. Each one minute recording contains 11 synthetic polyphonic sound events. 
