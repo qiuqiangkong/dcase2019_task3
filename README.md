@@ -19,7 +19,7 @@ The log mel spectrogram of the scenes are shown below:
 
 **0. Prepare data** 
 
-Download and upzip data, the data looks like:
+Download and upzip the data, the data looks like:
 
 <pre>
 dataset_root
@@ -52,8 +52,6 @@ Or run the commands in runme.sh line by line. The commands includes:
 (3) Train model
 
 (4) Inference
-
-The training looks like:
 
 ## Model
 We apply convolutional neural networks using the log mel spectrogram of 4 channels audio as input. The targets are onset and offset times, elevation and azimuth of sound events. 
