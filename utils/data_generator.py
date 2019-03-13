@@ -15,7 +15,7 @@ import config
 class DataGenerator(object):
 
     def __init__(self, features_dir, scalar, batch_size, holdout_fold, seed=1234):
-        """Data generator for training and validation. 
+        '''Data generator for training and validation. 
         
         Args:
           features_dir: string
@@ -24,7 +24,7 @@ class DataGenerator(object):
           holdout_fold: 1 | 2 | 3 | 4 | -1, where -1 indicates using all data 
               without validation for training
           seed: int, random seed
-        """
+        '''
 
         self.scalar = scalar
         self.batch_size = batch_size
@@ -140,11 +140,11 @@ class DataGenerator(object):
         return feature, event_matrix, elevation_matrix, azimuth_matrix
     
     def generate_train(self):
-        """Generate mini-batch data for training. 
+        '''Generate mini-batch data for training. 
         
         Returns:
           batch_data_dict: dict containing feature, event, elevation and azimuth
-        """
+        '''
 
         batch_size = self.batch_size
         indexes = np.array(self.train_index_array)
@@ -181,11 +181,11 @@ class DataGenerator(object):
             yield batch_data_dict
             
     def generate_validate(self, data_type):
-        """Generate feature and targets of a single audio file. 
+        '''Generate feature and targets of a single audio file. 
         
         Returns:
           batch_data_dict: dict containing feature, event, elevation and azimuth
-        """
+        '''
         
         if data_type == 'train':
             feature_names = self.train_feature_names
