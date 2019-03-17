@@ -7,31 +7,51 @@ import time
 import logging
 import matplotlib.pyplot as plt
 
-from utilities import get_filename, write_submission, calculate_metrics
+from utilities import (get_filename, write_submission, calculate_metrics, 
+    inverse_scale)
 from pytorch_utils import forward
 from losses import event_spatial_loss
 import config
 
 
 class Evaluator(object):
-    def __init__(self, model, data_generator, max_validate_num=None, cuda=True):
+    def __init__(self, model, data_generator, cuda=True):
+        '''Evaluator to evaluate prediction performance. 
+        
+        Args: 
+          model: object
+          data_generator: object
+          cuda: bool
+          verbose: bool
+        '''
+        
         self.model = model
         self.data_generator = data_generator
-        self.max_validate_num = max_validate_num
         self.cuda = cuda
         
         self.frames_per_second = config.frames_per_second
         self.submission_frames_per_second = config.submission_frames_per_second
         
-    def evaluate(self, data_type):
+    def evaluate(self, data_type, metadata_dir, submissions_dir, 
+        max_validate_num=None):
+        '''Evaluate the performance. 
+        
+        Args: 
+          data_type: 'train' | 'validate'
+          metadata_dir: string
+          submissions_dir: string
+          max_validate_num: None | int, maximum iteration to run to speed up evaluation
+        '''
         
         # Forward
+        generate_func=self.data_generator.generate_validate(
+            data_type=data_type, max_validate_num=max_validate_num)
+        
         list_dict = forward(
             model=self.model, 
-            generate_func=self.data_generator.generate_validate(data_type), 
+            generate_func=generate_func, 
             cuda=self.cuda, 
-            return_target=True, 
-            max_validate_num=self.max_validate_num)
+            return_target=True)
         
         # Calculate loss         
         (total_loss, event_loss, position_loss) = self.calculate_loss(list_dict)
@@ -39,19 +59,15 @@ class Evaluator(object):
             ''.format(data_type + ' statistics: ', 'total_loss', total_loss, 
             'event_loss', event_loss, 'position_loss', position_loss))
         
-        return list_dict
-        
-    def metrics(self, list_dict, submissions_dir, metadata_dir):
-        
+        # Write out submission and evaluate using code provided by organizer
         write_submission(list_dict, submissions_dir)
-        prediction_paths = [os.path.join(submissions_dir, '{}.csv'.format(dict['name'])) for dict in list_dict]
+        prediction_paths = [os.path.join(submissions_dir, 
+            '{}.csv'.format(dict['name'])) for dict in list_dict]
+        
         metrics = calculate_metrics(metadata_dir, prediction_paths)
         
         for key in metrics.keys():
             logging.info('    {:<20} {:.3f}'.format(key + ' :', metrics[key]))
-        
-        return metrics
-                    
                     
     def calculate_loss(self, list_dict):
                 
@@ -87,7 +103,14 @@ class Evaluator(object):
         return output_dict, target_dict
         
             
-    def visualize(self, data_type):
+    def visualize(self, data_type, max_validate_num=None):
+        '''Visualize the log mel spectrogram, reference and prediction of 
+        sound events, elevation and azimuth. 
+        
+        Args:
+          data_type: 'train' | 'validate'
+          max_validate_num: None | int, maximum iteration to run to speed up evaluation
+        '''
         
         mel_bins = config.mel_bins
         frames_per_second = config.frames_per_second
@@ -95,14 +118,17 @@ class Evaluator(object):
         labels = config.labels
         
         # Forward
+        generate_func=self.data_generator.generate_validate(
+            data_type=data_type, max_validate_num=max_validate_num)
+            
         list_dict = forward(
             model=self.model, 
-            generate_func=self.data_generator.generate_validate(data_type), 
+            generate_func=generate_func, 
             cuda=self.cuda, 
             return_input=True, 
             return_target=True)
 
-        for dict in list_dict:
+        for n, dict in enumerate(list_dict):
             
             print('File: {}'.format(dict['name']))
 
@@ -110,7 +136,10 @@ class Evaluator(object):
             length_in_second = frames_num / float(frames_per_second)
             
             fig, axs = plt.subplots(4, 2, figsize=(15, 10))
-            axs[0, 0].matshow(dict['feature'][0][0].T, origin='lower', aspect='auto', cmap='jet')
+            logmel = inverse_scale(dict['feature'][0][0], 
+                self.data_generator.scalar['mean'], 
+                self.data_generator.scalar['std'])
+            axs[0, 0].matshow(logmel.T, origin='lower', aspect='auto', cmap='jet')
             axs[1, 0].matshow(dict['target_event'][0].T, origin='lower', aspect='auto', cmap='jet')
             axs[2, 0].matshow(dict['output_event'][0].T, origin='lower', aspect='auto', cmap='jet')
             axs[0, 1].matshow(dict['target_elevation'][0].T, origin='lower', aspect='auto', cmap='jet')
