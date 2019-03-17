@@ -13,7 +13,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from utilities import create_folder, get_filename, create_logging, load_scalar, calculate_metrics
+from utilities import (create_folder, get_filename, create_logging, 
+    load_scalar, calculate_metrics)
 from data_generator import DataGenerator
 from models import Cnn_9layers
 from losses import event_spatial_loss
@@ -29,9 +30,9 @@ def train(args):
       dataset_dir: string, directory of dataset
       workspace: string, directory of workspace
       audio_type: 'foa' | 'mic'
-      holdout_fold: 1 | 2 | 3 | 4 | -1, where -1 indicates using all data 
-          without validation for training
-      model_name: string, e.g. 'Cnn_9layers'
+      holdout_fold: '1' | '2' | '3' | '4' | 'none', where -1 indicates using 
+          all data without validation for training
+      model_type: string, e.g. 'Cnn_9layers'
       batch_size: int
       cuda: bool
       mini_data: bool, set True for debugging on a small part of data
@@ -42,7 +43,7 @@ def train(args):
     workspace = args.workspace
     audio_type = args.audio_type
     holdout_fold = args.holdout_fold
-    model_name = args.model_name
+    model_type = args.model_type
     batch_size = args.batch_size
     cuda = args.cuda and torch.cuda.is_available()
     mini_data = args.mini_data
@@ -70,18 +71,18 @@ def train(args):
         '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 
         'dev', frames_per_second, mel_bins), 'scalar.h5')
         
-    models_dir = os.path.join(workspace, 'models', filename, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_name, prefix, audio_type, 
+    checkpoints_dir = os.path.join(workspace, 'checkpoints', filename, 
+        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
         'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold))
-    create_folder(models_dir)
+    create_folder(checkpoints_dir)
     
     temp_submissions_dir = os.path.join(workspace, '_temp', 'submissions', filename, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_name, prefix, audio_type, 
+        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
         'dev', frames_per_second, mel_bins))
     create_folder(temp_submissions_dir)
     
     logs_dir = os.path.join(args.workspace, 'logs', filename, args.mode, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_name, prefix, audio_type, 
+        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
         'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold))
     create_logging(logs_dir, filemode='w')
     logging.info(args)
@@ -90,7 +91,7 @@ def train(args):
     scalar = load_scalar(scalar_path)
     
     # Model
-    Model = eval(model_name)
+    Model = eval(model_type)
     model = Model(classes_num)
     
     if cuda:
@@ -111,7 +112,6 @@ def train(args):
     evaluator = Evaluator(
         model=model, 
         data_generator=data_generator, 
-        max_validate_num=max_validate_num,
         cuda=cuda)
 
     train_bgn_time = time.time()
@@ -124,21 +124,27 @@ def train(args):
         if iteration % 100 == 0:
 
             logging.info('------------------------------------')
-            logging.info('iteration: {}'.format(iteration))
+            logging.info('Iteration: {}'.format(iteration))
 
             train_fin_time = time.time()
-            train_list_dict = evaluator.evaluate(data_type='train')
-            evaluator.metrics(train_list_dict, temp_submissions_dir, metadata_dir)
+            evaluator.evaluate(
+                data_type='train', 
+                metadata_dir=metadata_dir, 
+                submissions_dir=temp_submissions_dir, 
+                max_validate_num=max_validate_num)
 
-            if holdout_fold != -1:
-                validate_list_dict = evaluator.evaluate(data_type='validate')
-                evaluator.metrics(validate_list_dict, temp_submissions_dir, metadata_dir)
+            if holdout_fold != 'none':
+                evaluator.evaluate(
+                    data_type='validate', 
+                    metadata_dir=metadata_dir, 
+                    submissions_dir=temp_submissions_dir, 
+                    max_validate_num=max_validate_num)
 
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time
 
             logging.info(
-                'train time: {:.3f} s, validate time: {:.3f} s'
+                'Train time: {:.3f} s, validate time: {:.3f} s'
                 ''.format(train_time, validate_time))
 
             train_bgn_time = time.time()
@@ -148,14 +154,14 @@ def train(args):
 
             checkpoint = {
                 'iteration': iteration, 
-                'model': model, 
-                'optimizer': optimizer}
+                'model': model.state_dict(), 
+                'optimizer': optimizer.state_dict()}
 
-            save_path = os.path.join(
-                models_dir, 'md_{}_iters.pth'.format(iteration))
+            checkpoint_path = os.path.join(
+                checkpoints_dir, '{}_iterations.pth'.format(iteration))
                 
-            torch.save(checkpoint, save_path)
-            logging.info('Model saved to {}'.format(save_path))
+            torch.save(checkpoint, checkpoint_path)
+            logging.info('Model saved to {}'.format(checkpoint_path))
             
         # Reduce learning rate
         if reduce_lr and iteration % 200 == 0 and iteration > 0:
@@ -190,9 +196,10 @@ def inference_validation(args):
       dataset_dir: string, directory of dataset
       workspace: string, directory of workspace
       audio_type: 'foa' | 'mic'
-      holdout_fold: 1 | 2 | 3 | 4 | -1, where -1 indicates calculating metrics
-          on all 1, 2, 3 and 4 folds. 
-      model_name: string, e.g. 'Cnn_9layers'
+      holdout_fold: '1' | '2' | '3' | '4' | 'none', where -1 indicates using 
+          all data without validation for training
+      model_type: string, e.g. 'Cnn_9layers'
+      iteration: int
       batch_size: int
       cuda: bool
       visualize: bool
@@ -204,7 +211,7 @@ def inference_validation(args):
     workspace = args.workspace
     audio_type = args.audio_type
     holdout_fold = args.holdout_fold
-    model_name = args.model_name
+    model_type = args.model_type
     iteration = args.iteration
     batch_size = args.batch_size
     cuda = args.cuda and torch.cuda.is_available()
@@ -214,6 +221,7 @@ def inference_validation(args):
     
     mel_bins = config.mel_bins
     frames_per_second = config.frames_per_second
+    classes_num = config.classes_num
 
     # Paths
     if mini_data:
@@ -224,12 +232,12 @@ def inference_validation(args):
     metadata_dir = os.path.join(dataset_dir, 'metadata_dev')
 
     submissions_dir = os.path.join(workspace, 'submissions', filename, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_name, prefix, audio_type, 
+        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
         'dev', frames_per_second, mel_bins), 'iteration={}'.format(iteration))
     create_folder(submissions_dir)
     
     logs_dir = os.path.join(args.workspace, 'logs', filename, args.mode, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_name, prefix, audio_type, 
+        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
         'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold))
     create_logging(logs_dir, filemode='w')
     logging.info(args)
@@ -245,17 +253,19 @@ def inference_validation(args):
             '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 
             'dev', frames_per_second, mel_bins), 'scalar.h5')
     
-        checkoutpoint_path = os.path.join(workspace, 'models', filename, 
-            '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_name, '', audio_type, 
+        checkoutpoint_path = os.path.join(workspace, 'checkpoints', filename, 
+            '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, '', audio_type, 
             'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold), 
-            'md_{}_iters.pth'.format(iteration))
+            '{}_iterations.pth'.format(iteration))
             
         # Load scalar
         scalar = load_scalar(scalar_path)
         
         # Load model    
+        Model = eval(model_type)
+        model = Model(classes_num)
         checkpoint = torch.load(checkoutpoint_path)
-        model = checkpoint['model']
+        model.load_state_dict(checkpoint['model'])
         
         if cuda:
             model.cuda()
@@ -275,15 +285,18 @@ def inference_validation(args):
         
         # Calculate metrics
         data_type = 'validate'
-        list_dict = evaluator.evaluate(data_type=data_type)
-        evaluator.metrics(list_dict=list_dict, submissions_dir=submissions_dir, 
-            metadata_dir=metadata_dir)
+        
+        evaluator.evaluate(
+            data_type=data_type, 
+            metadata_dir=metadata_dir, 
+            submissions_dir=submissions_dir, 
+            max_validate_num=None)
         
         # Visualize reference and predicted events, elevation and azimuth
         if visualize:
             evaluator.visualize(data_type=data_type)
             
-    # Calculate metrics for all folds
+    # Calculate metrics for all 4 folds
     else:
         prediction_names = os.listdir(submissions_dir)
         prediction_paths = [os.path.join(submissions_dir, name) for \
@@ -306,9 +319,9 @@ if __name__ == '__main__':
     parser_train.add_argument('--dataset_dir', type=str, required=True)
     parser_train.add_argument('--workspace', type=str, required=True)
     parser_train.add_argument('--audio_type', type=str, choices=['foa', 'mic'], required=True)
-    parser_train.add_argument('--holdout_fold', type=int, choices=[1, 2, 3, 4, -1], required=True, 
+    parser_train.add_argument('--holdout_fold', type=str, choices=['1', '2', '3', '4', 'none'], required=True, 
         help='Holdout fold. Set to -1 if using all data without validation to train. ')
-    parser_train.add_argument('--model_name', type=str, required=True)
+    parser_train.add_argument('--model_type', type=str, required=True)
     parser_train.add_argument('--batch_size', type=int, required=True)
     parser_train.add_argument('--cuda', action='store_true', default=False)
     parser_train.add_argument('--mini_data', action='store_true', default=False)
@@ -317,8 +330,8 @@ if __name__ == '__main__':
     parser_inference_validation.add_argument('--dataset_dir', type=str, required=True)
     parser_inference_validation.add_argument('--workspace', type=str, required=True)
     parser_inference_validation.add_argument('--audio_type', type=str, choices=['foa', 'mic'], required=True)
-    parser_inference_validation.add_argument('--holdout_fold', type=int, choices=[1, 2, 3, 4, -1], required=True)
-    parser_inference_validation.add_argument('--model_name', type=str, required=True)
+    parser_inference_validation.add_argument('--holdout_fold', type=str, choices=['1', '2', '3', '4', 'none'], required=True)
+    parser_inference_validation.add_argument('--model_type', type=str, required=True)
     parser_inference_validation.add_argument('--iteration', type=int, required=True)
     parser_inference_validation.add_argument('--batch_size', type=int, required=True)
     parser_inference_validation.add_argument('--cuda', action='store_true', default=False)
