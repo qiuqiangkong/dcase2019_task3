@@ -30,7 +30,7 @@ def interpolate(x, ratio):
     
     
 def forward(model, generate_func, cuda, return_input=False, 
-    return_target=False, max_validate_num=None):
+    return_target=False):
     '''Forward data to model in mini-batch. 
     
     Args: 
@@ -39,17 +39,16 @@ def forward(model, generate_func, cuda, return_input=False,
       cuda: bool
       return_input: bool
       return_target: bool
-      max_validate_num: None | int, maximum mini-batch to forward to speed up validation
+
+    Returns:
+      dict
     '''
 
     list_dict = []
     
     # Evaluate on mini-batch
     for (n, single_data_dict) in enumerate(generate_func):
-
-        if n == max_validate_num:
-            break
-
+        
         # Predict
         batch_feature = move_data_to_gpu(single_data_dict['feature'], cuda)
         
