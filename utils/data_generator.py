@@ -21,8 +21,8 @@ class DataGenerator(object):
           features_dir: string
           scalar: object, containing mean and std value
           batch_size: int
-          holdout_fold: 1 | 2 | 3 | 4 | -1, where -1 indicates using all data 
-              without validation for training
+          holdout_fold: '1' | '2' | '3' | '4' | 'none', where -1 indicates using 
+              all data without validation for training
           seed: int, random seed
         '''
 
@@ -180,7 +180,7 @@ class DataGenerator(object):
 
             yield batch_data_dict
             
-    def generate_validate(self, data_type):
+    def generate_validate(self, data_type, max_validate_num=None):
         '''Generate feature and targets of a single audio file. 
         
         Returns:
