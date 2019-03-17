@@ -54,7 +54,8 @@ def create_logging(log_dir, filemode):
 
 def read_multichannel_audio(audio_path, target_fs=None):
 
-    (multichannel_audio, fs) = soundfile.read(audio_path)     # (samples, channels_num)
+    (multichannel_audio, fs) = soundfile.read(audio_path)
+    '''(samples, channels_num)'''
     
     if target_fs is not None and fs != target_fs:
         (samples, channels_num) = multichannel_audio.shape
@@ -71,7 +72,6 @@ def read_multichannel_audio(audio_path, target_fs=None):
 
 
 def calculate_scalar_of_tensor(x):
-
     if x.ndim == 2:
         axis = 0
     elif x.ndim == 3:
@@ -94,6 +94,10 @@ def load_scalar(scalar_path):
     
 def scale(x, mean, std):
     return (x - mean) / std
+    
+    
+def inverse_scale(x, mean, std):
+    return x * std + mean
 
         
 def write_submission(list_dict, submissions_dir):
@@ -133,7 +137,12 @@ def write_submission(list_dict, submissions_dir):
         
         
 def resample_matrix(matrix, ratio):
+    '''Resample matrix
     
+    Args:
+      matrix: (time_steps, classes_num)
+      ratio: float, ratio to resample
+    '''
     new_len = int(round(ratio * matrix.shape[0]))
     new_matrix = np.zeros((new_len, matrix.shape[1]))
     
