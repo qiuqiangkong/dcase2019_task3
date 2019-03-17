@@ -284,7 +284,7 @@ if __name__ == '__main__':
 
     parser_scalar = subparsers.add_parser('calculate_scalar')
     parser_scalar.add_argument('--workspace', type=str, required=True)
-    parser_scalar.add_argument('--data_type', type=str, required=True, choices=['development', 'evaluation'])
+    parser_scalar.add_argument('--data_type', type=str, required=True, choices=['development'])
     parser_scalar.add_argument('--audio_type', type=str, required=True, choices=['foa', 'mic'])
     parser_scalar.add_argument('--mini_data', action='store_true', default=False)
     
