@@ -54,10 +54,7 @@ Or run the commands in runme.sh line by line. The commands includes:
 (4) Inference
 
 ## Model
-We apply convolutional neural networks using the log mel spectrogram of 4 channels audio as input. The targets are onset and offset times, elevation and azimuth of sound events. 
-
-## Results
-To train a CNN with 9 layers and a mini-batch size of 32, the training takes approximately 200 ms / iteration on a single card GTX Titan Xp GPU. The model is trained for 5000 iterations. The training looks like:
+We apply convolutional neural networks using the log mel spectrogram of 4 channels audio as input. The targets are onset and offset times, elevation and azimuth of sound events. To train a CNN with 9 layers and a mini-batch size of 32, the training takes approximately 200 ms / iteration on a single card GTX Titan Xp GPU. The model is trained for 5000 iterations. The training looks like:
 
 <pre>
 Load data time: 90.292 s
@@ -66,33 +63,34 @@ Validation audio num: 100
 ------------------------------------
 ...
 ------------------------------------
-iteration: 2000
-total_loss: 0.184, event_loss: 0.010, position_loss: 0.174
+iteration: 5000
+train statistics:    total_loss: 0.076, event_loss: 0.007, position_loss: 0.069
     Total 10 files written to /vol/vssp/msos/qk/workspaces/dcase2019_task3/_temp/submissions/main/Cnn_9layers_foa_dev_logmel_64frames_64melbins
-    sed_error_rate :     0.071
-    sed_f1_score :       0.963
-    doa_error :          14.742
-    doa_frame_recall :   0.961
-    seld_score :         0.057
-validate statistics:  total_loss: 0.531, event_loss: 0.047, position_loss: 0.483
+    sed_error_rate :     0.057
+    sed_f1_score :       0.971
+    doa_error :          8.902
+    doa_frame_recall :   0.966
+    seld_score :         0.042
+validate statistics:  total_loss: 0.449, event_loss: 0.039, position_loss: 0.409
     Total 10 files written to /vol/vssp/msos/qk/workspaces/dcase2019_task3/_temp/submissions/main/Cnn_9layers_foa_dev_logmel_64frames_64melbins
-    sed_error_rate :     0.265
-    sed_f1_score :       0.847
-    doa_error :          37.488
-    doa_frame_recall :   0.876
-    seld_score :         0.187
-train time: 19.950 s, validate time: 7.004 s
-Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task3/models/main/Cnn_9layers_foa_dev_logmel_64frames_64melbins/holdout_fold=1/md_2000_iters.pth
+    sed_error_rate :     0.206
+    sed_f1_score :       0.875
+    doa_error :          33.374
+    doa_frame_recall :   0.894
+    seld_score :         0.156
+train time: 20.135 s, validate time: 7.023 s
+Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task3/models/main/Cnn_9layers_foa_dev_logmel_64frames_64melbins/holdout_fold=1/md_5000_iters.pth
 ------------------------------------
 ...
 </pre>
 
+## Results
 
 **Validation result on 400 audio files**
 
 |  Dataset  | Error rate | F score | DOA error | Frame recall | Seld_score |
 |:---------:|:----------:|:-------:|:---------:|:------------:|:----------:|
-| Ambisonic |    0.342   |  79.2 % |   41.1°   |    75.9 %    |    0.255   |
+| Ambisonic |    0.337   |  79.5 % |   42.4°   |    76.2 %    |    0.254   |
 
 
 **Visualization of prediction**
