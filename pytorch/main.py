@@ -73,7 +73,8 @@ def train(args):
         
     checkpoints_dir = os.path.join(workspace, 'checkpoints', filename, 
         '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
-        'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold))
+        'dev', frames_per_second, mel_bins), model_type, 
+        'holdout_fold={}'.format(holdout_fold))
     create_folder(checkpoints_dir)
     
     temp_submissions_dir = os.path.join(workspace, '_temp', 'submissions', filename, 
@@ -255,8 +256,8 @@ def inference_validation(args):
     
         checkoutpoint_path = os.path.join(workspace, 'checkpoints', filename, 
             '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, '', audio_type, 
-            'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold), 
-            '{}_iterations.pth'.format(iteration))
+            'dev', frames_per_second, mel_bins), model_type, 
+            'holdout_fold={}'.format(holdout_fold), '{}_iterations.pth'.format(iteration))
             
         # Load scalar
         scalar = load_scalar(scalar_path)
