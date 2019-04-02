@@ -108,7 +108,7 @@ We are able to predict the DOA only using the log mel spectrogram magnitude as i
 This codebase provides a convolutional neural network (CNN) for DCASE 2019 challenge Task 3 Sound Event Localization and Detection. 
 
 ## Citation
-To appear. 
+[1] To appear. 
 
 ## FAQ
 If you met running out of GPU memory error, then try to reduce batch_size. 
@@ -120,4 +120,6 @@ All other files except utils/cls_feature_class.py is under MIT_LICENSE.
 
 ## External link
 
-The official baseline system implemented using Keras can be found in https://github.com/sharathadavanne/seld-dcase2019
+[2] https://github.com/sharathadavanne/seld-dcase2019
+
+[3] http://dcase.community/challenge2019/task-audio-tagging
