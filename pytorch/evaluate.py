@@ -114,7 +114,8 @@ class Evaluator(object):
         
         Args:
           data_type: 'train' | 'validate'
-          max_validate_num: None | int, maximum iteration to run to speed up evaluation
+          max_validate_num: None | int, maximum iteration to run to speed up 
+              evaluation
         '''
         
         mel_bins = config.mel_bins
@@ -134,7 +135,6 @@ class Evaluator(object):
             return_target=True)
 
         for n, dict in enumerate(list_dict):
-            
             print('File: {}'.format(dict['name']))
 
             frames_num = dict['target_event'].shape[1]
@@ -174,7 +174,6 @@ class Evaluator(object):
             axs[0, 0].set_ylabel('Mel bins')
             axs[0, 0].set_yticks([0, mel_bins])
             axs[0, 0].set_yticklabels([0, mel_bins])
-            
             axs[3, 0].set_visible(False)
             
             fig.tight_layout()

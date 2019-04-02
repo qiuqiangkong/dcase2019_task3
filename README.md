@@ -88,7 +88,7 @@ Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task3/models/main/Cnn_9lay
 
 **Validation result on 400 audio files**
 
-<img src="appendixes/results.png">
+<img src="appendixes/results.png" width="400">
 
 **Plot results over different iterations**
 
