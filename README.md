@@ -90,13 +90,19 @@ Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task3/models/main/Cnn_9lay
 
 <img src="appendixes/results.png" width="500">
 
+The 9-layer CNN achieves slightly better results than other CNNs. The baseline system result is from [2], which applies phase information as extra input and obtains better DOA result. Our system only use log mel spectrogram magnitue as input, without using phase as input. 
+
 **Plot results over different iterations**
 
 <img src="appendixes/fold1_plot.png">
 
+The 5-layer and 9-layer CNN achieve similar results. The 13-layer CNN tends to overfit. 
+
 **Visualization the prediction**
 
 <img src="appendixes/split1_ir0_ov1_1_pred.png">
+
+We are able to predict the DOA only using the log mel spectrogram magnitude as input. 
 
 ## Summary
 This codebase provides a convolutional neural network (CNN) for DCASE 2019 challenge Task 3 Sound Event Localization and Detection. 
