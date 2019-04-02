@@ -99,43 +99,7 @@ def scale(x, mean, std):
 def inverse_scale(x, mean, std):
     return x * std + mean
 
-        
-def write_submission(list_dict, submissions_dir):
-    '''Write predicted result to submission csv files. 
-    
-    Args:
-      list_dict: list of dict, containing predicted event, elevation and azimuth
-      submissions_dir: string
-    '''
-    
-    frames_per_second = config.frames_per_second
-    submission_frames_per_second = config.submission_frames_per_second
-    
-    for dict in list_dict:
-        filename = '{}.csv'.format(dict['name'])
-        filepath = os.path.join(submissions_dir, filename)
-        
-        event_matrix = dict['output_event'][0]
-        elevation_matrix = dict['output_elevation'][0]
-        azimuth_matrix = dict['output_azimuth'][0]
-        
-        # Resample predicted frames to submission format
-        ratio = submission_frames_per_second / float(frames_per_second)
-        resampled_event_matrix = resample_matrix(event_matrix, ratio)
-        resampled_elevation_matrix = resample_matrix(elevation_matrix, ratio)
-        resampled_azimuth_matrix = resample_matrix(azimuth_matrix, ratio)
-        
-        with open(filepath, 'w') as f:
-            for n in range(resampled_event_matrix.shape[0]):
-                for k in range(resampled_event_matrix.shape[1]):
-                    if resampled_event_matrix[n, k] > 0.5:
-                        elevation = int(resampled_elevation_matrix[n, k])
-                        azimuth = int(resampled_azimuth_matrix[n, k])
-                        f.write('{},{},{},{}\n'.format(n, k, azimuth, elevation))
-            
-    logging.info('    Total {} files written to {}'.format(len(list_dict), submissions_dir))
-        
-        
+                
 def resample_matrix(matrix, ratio):
     '''Resample matrix
     
@@ -202,3 +166,46 @@ def calculate_metrics(metadata_dir, prediction_paths):
         'seld_score': seld_score }
         
     return metrics
+    
+    
+def write_submission(list_dict, submissions_dir):
+    '''Write predicted result to submission csv files. 
+    
+    Args:
+      list_dict: list of dict, e.g.:
+        [{'name': 'split1_ir0_ov1_7', 
+          'output_event': (1, frames_num, classes_num), 
+          'output_elevation': (1, frames_num, classes_num), 
+          'output_azimuth': (1, frames_num, classes_num), 
+          ...
+          }, 
+          ...]
+      submissions_dir: string, directory to write out submission files
+    '''
+    
+    frames_per_second = config.frames_per_second
+    submission_frames_per_second = config.submission_frames_per_second
+    
+    for dict in list_dict:
+        filename = '{}.csv'.format(dict['name'])
+        filepath = os.path.join(submissions_dir, filename)
+        
+        event_matrix = dict['output_event'][0]
+        elevation_matrix = dict['output_elevation'][0]
+        azimuth_matrix = dict['output_azimuth'][0]
+        
+        # Resample predicted frames to submission format
+        ratio = submission_frames_per_second / float(frames_per_second)
+        resampled_event_matrix = resample_matrix(event_matrix, ratio)
+        resampled_elevation_matrix = resample_matrix(elevation_matrix, ratio)
+        resampled_azimuth_matrix = resample_matrix(azimuth_matrix, ratio)
+        
+        with open(filepath, 'w') as f:
+            for n in range(resampled_event_matrix.shape[0]):
+                for k in range(resampled_event_matrix.shape[1]):
+                    if resampled_event_matrix[n, k] > 0.5:
+                        elevation = int(resampled_elevation_matrix[n, k])
+                        azimuth = int(resampled_azimuth_matrix[n, k])
+                        f.write('{},{},{},{}\n'.format(n, k, azimuth, elevation))
+            
+    logging.info('    Total {} files written to {}'.format(len(list_dict), submissions_dir))

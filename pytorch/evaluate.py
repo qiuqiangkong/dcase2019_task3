@@ -5,6 +5,8 @@ sys.path.insert(1, os.path.join(sys.path[0], '../utils'))
 import numpy as np
 import time
 import logging
+import datetime
+import _pickle as cPickle
 import matplotlib.pyplot as plt
 
 from utilities import (get_filename, write_submission, calculate_metrics, 
@@ -22,7 +24,6 @@ class Evaluator(object):
           model: object
           data_generator: object
           cuda: bool
-          verbose: bool
         '''
         
         self.model = model
@@ -38,9 +39,10 @@ class Evaluator(object):
         
         Args: 
           data_type: 'train' | 'validate'
-          metadata_dir: string
-          submissions_dir: string
-          max_validate_num: None | int, maximum iteration to run to speed up evaluation
+          metadata_dir: string, directory of reference meta csvs
+          submissions_dir: string: directory to write out submission csvs
+          max_validate_num: None | int, maximum iteration to run to speed up 
+              evaluation
         '''
         
         # Forward
@@ -55,22 +57,25 @@ class Evaluator(object):
         
         # Calculate loss         
         (total_loss, event_loss, position_loss) = self.calculate_loss(list_dict)
+        
         logging.info('{:<20} {}: {:.3f}, {}: {:.3f}, {}: {:.3f}'
             ''.format(data_type + ' statistics: ', 'total_loss', total_loss, 
             'event_loss', event_loss, 'position_loss', position_loss))
         
         # Write out submission and evaluate using code provided by organizer
         write_submission(list_dict, submissions_dir)
+        
         prediction_paths = [os.path.join(submissions_dir, 
             '{}.csv'.format(dict['name'])) for dict in list_dict]
         
-        metrics = calculate_metrics(metadata_dir, prediction_paths)
+        statistics = calculate_metrics(metadata_dir, prediction_paths)
         
-        for key in metrics.keys():
-            logging.info('    {:<20} {:.3f}'.format(key + ' :', metrics[key]))
+        for key in statistics.keys():
+            logging.info('    {:<20} {:.3f}'.format(key + ' :', statistics[key]))
+            
+        return statistics
                     
     def calculate_loss(self, list_dict):
-                
         total_loss_list = []
         event_loss_list = []
         position_loss_list = []
@@ -174,3 +179,33 @@ class Evaluator(object):
             
             fig.tight_layout()
             plt.show()
+            
+            
+class StatisticsContainer(object):
+    def __init__(self, statistics_path):
+        '''Container of statistics during training. 
+        
+        Args:
+          statistics_path: string, path to write out
+        '''
+        self.statistics_path = statistics_path
+
+        self.backup_statistics_path = '{}_{}.pickle'.format(
+            os.path.splitext(self.statistics_path)[0], 
+                datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+
+        self.statistics_list = []
+
+    def append_and_dump(self, iteration, statistics):
+        '''Append statistics to container and dump the container. 
+        
+        Args:
+          iteration: int
+          statistics: dict of statistics
+        '''
+        statistics['iteration'] = iteration
+        self.statistics_list.append(statistics)
+
+        cPickle.dump(self.statistics_list, open(self.statistics_path, 'wb'))
+        cPickle.dump(self.statistics_list, open(self.backup_statistics_path, 'wb'))
+        logging.info('    Dump statistics to {}'.format(self.statistics_path))

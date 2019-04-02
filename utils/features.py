@@ -158,26 +158,27 @@ def calculate_feature_for_each_audio_file(args):
     meta_names = sorted(os.listdir(metas_dir))
     
     if mini_data:
+        mini_num = 10
         random_state = np.random.RandomState(1234)
         random_state.shuffle(meta_names)
+        meta_names = meta_names[0 : mini_num]
     
     print('Extracting features of all audio files ...')
     extract_time = time.time()
     
-    for (n, meta_name) in enumerate(meta_names):
-        
+    for (n, meta_name) in enumerate(meta_names):        
         meta_path = os.path.join(metas_dir, meta_name)
         bare_name = os.path.splitext(meta_name)[0]
         audio_path = os.path.join(audios_dir, '{}.wav'.format(bare_name))
         feature_path = os.path.join(features_dir, '{}.h5'.format(bare_name))
         
         df = pd.read_csv(meta_path, sep=',')
-        event = df['sound_event_recording'].values
-        start_time = df['start_time'].values
-        end_time = df['end_time'].values
-        elevation = df['ele'].values
-        azimuth = df['azi'].values
-        distance = df['dist'].values
+        event_array = df['sound_event_recording'].values
+        start_time_array = df['start_time'].values
+        end_time_array = df['end_time'].values
+        elevation_array = df['ele'].values
+        azimuth_array = df['azi'].values
+        distance_array = df['dist'].values
         
         # Read audio
         (multichannel_audio, _) = read_multichannel_audio(
@@ -188,21 +189,17 @@ def calculate_feature_for_each_audio_file(args):
         feature = feature_extractor.transform_multichannel(multichannel_audio)
         
         with h5py.File(feature_path, 'w') as hf:
-            
             hf.create_dataset('feature', data=feature, dtype=np.float32)
             
             hf.create_group('target')
-            hf['target'].create_dataset('event', data=[e.encode() for e in event], dtype='S20')
-            hf['target'].create_dataset('start_time', data=start_time, dtype=np.float32)
-            hf['target'].create_dataset('end_time', data=end_time, dtype=np.float32)
-            hf['target'].create_dataset('elevation', data=elevation, dtype=np.int32)
-            hf['target'].create_dataset('azimuth', data=azimuth, dtype=np.int32)
-            hf['target'].create_dataset('distance', data=distance, dtype=np.int32)
+            hf['target'].create_dataset('event', data=[e.encode() for e in event_array], dtype='S20')
+            hf['target'].create_dataset('start_time', data=start_time_array, dtype=np.float32)
+            hf['target'].create_dataset('end_time', data=end_time_array, dtype=np.float32)
+            hf['target'].create_dataset('elevation', data=elevation_array, dtype=np.int32)
+            hf['target'].create_dataset('azimuth', data=azimuth_array, dtype=np.int32)
+            hf['target'].create_dataset('distance', data=distance_array, dtype=np.int32)
         
         print(n, feature_path, feature.shape)
-    
-        if mini_data and n == 10:
-            break
     
     print('Extract features finished! {:.3f} s'.format(time.time() - extract_time))
     
@@ -271,23 +268,25 @@ def calculate_scalar(args):
             
 
 if __name__ == '__main__':
-    
     parser = argparse.ArgumentParser(description='')
     subparsers = parser.add_subparsers(dest='mode')
 
+    # Calculate feature for each audio file
     parser_logmel = subparsers.add_parser('calculate_feature_for_each_audio_file')
-    parser_logmel.add_argument('--dataset_dir', type=str, required=True)
-    parser_logmel.add_argument('--workspace', type=str, required=True)
+    parser_logmel.add_argument('--dataset_dir', type=str, required=True, help='Directory of dataset.')
+    parser_logmel.add_argument('--workspace', type=str, required=True, help='Directory of your workspace.')
     parser_logmel.add_argument('--data_type', type=str, required=True, choices=['development', 'evaluation'])
     parser_logmel.add_argument('--audio_type', type=str, required=True, choices=['foa', 'mic'])
-    parser_logmel.add_argument('--mini_data', action='store_true', default=False)
+    parser_logmel.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
 
+    # Calculate scalar
     parser_scalar = subparsers.add_parser('calculate_scalar')
-    parser_scalar.add_argument('--workspace', type=str, required=True)
-    parser_scalar.add_argument('--data_type', type=str, required=True, choices=['development'])
+    parser_scalar.add_argument('--workspace', type=str, required=True, help='Directory of your workspace.')
+    parser_scalar.add_argument('--data_type', type=str, required=True, choices=['development'], help='Scalar is calculated on development set.')
     parser_scalar.add_argument('--audio_type', type=str, required=True, choices=['foa', 'mic'])
-    parser_scalar.add_argument('--mini_data', action='store_true', default=False)
+    parser_scalar.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
     
+    # Parse arguments
     args = parser.parse_args()
     
     if args.mode == 'calculate_feature_for_each_audio_file':

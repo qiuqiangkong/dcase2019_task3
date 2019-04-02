@@ -41,7 +41,14 @@ def forward(model, generate_func, cuda, return_input=False,
       return_target: bool
 
     Returns:
-      dict
+      list_dict, e.g.:
+        [{'name': 'split1_ir0_ov1_7', 
+          'output_event': (1, frames_num, classes_num), 
+          'output_elevation': (1, frames_num, classes_num), 
+          'output_azimuth': (1, frames_num, classes_num), 
+          ...
+          }, 
+          ...]
     '''
 
     list_dict = []
@@ -71,5 +78,5 @@ def forward(model, generate_func, cuda, return_input=False,
             output_dict['target_azimuth'] = single_data_dict['azimuth']
             
         list_dict.append(output_dict)
-
+        
     return list_dict

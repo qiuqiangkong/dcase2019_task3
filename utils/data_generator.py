@@ -18,11 +18,11 @@ class DataGenerator(object):
         '''Data generator for training and validation. 
         
         Args:
-          features_dir: string
+          features_dir: string, directory of features
           scalar: object, containing mean and std value
           batch_size: int
-          holdout_fold: '1' | '2' | '3' | '4' | 'none', where -1 indicates using 
-              all data without validation for training
+          holdout_fold: '1' | '2' | '3' | '4' | 'none', where 'none' indicates 
+              using all data without validation for training
           seed: int, random seed
         '''
 
@@ -35,7 +35,6 @@ class DataGenerator(object):
         self.lb_to_idx = config.lb_to_idx
         self.time_steps = config.time_steps
         
-
         # Load data
         load_time = time.time()
         
@@ -52,7 +51,7 @@ class DataGenerator(object):
         self.train_elevation_matrix_list = []
         self.train_azimuth_matrix_list = []
         self.train_index_array_list = []
-        pointer = 0
+        frame_index = 0
         
         # Load training feature and targets
         for feature_name in self.train_feature_names:
@@ -61,9 +60,12 @@ class DataGenerator(object):
             (feature, event_matrix, elevation_matrix, azimuth_matrix) = \
                 self.load_hdf5(feature_path)
                 
-            frames_num = feature.shape[1]
-            index_array = np.arange(pointer, pointer + frames_num - self.time_steps)
-            pointer += frames_num
+            frames_num = feature.shape[1]   
+            '''Number of frames of the log mel spectrogram of an audio 
+            recording. May be different from file to file'''
+            
+            index_array = np.arange(frame_index, frame_index + frames_num - self.time_steps)
+            frame_index += frames_num
             
             # Append data
             self.train_features_list.append(feature)
@@ -98,6 +100,9 @@ class DataGenerator(object):
         logging.info('Load data time: {:.3f} s'.format(time.time() - load_time))
         logging.info('Training audio num: {}'.format(len(self.train_feature_names)))
         logging.info('Validation audio num: {}'.format(len(self.validate_feature_names)))
+        
+        self.random_state.shuffle(self.train_index_array)
+        self.pointer = 0
         
     def load_hdf5(self, feature_path):
         '''Load hdf5. 
@@ -146,23 +151,19 @@ class DataGenerator(object):
           batch_data_dict: dict containing feature, event, elevation and azimuth
         '''
 
-        batch_size = self.batch_size
-        indexes = np.array(self.train_index_array)
-        self.random_state.shuffle(indexes)
-        pointer = 0
-
         while True:
-
             # Reset pointer
-            if pointer >= len(indexes):
-                pointer = 0
-                self.random_state.shuffle(indexes)
+            if self.pointer >= len(self.train_index_array):
+                self.pointer = 0
+                self.random_state.shuffle(self.train_index_array)
 
             # Get batch indexes
-            batch_indexes = indexes[pointer: pointer + batch_size]
+            batch_indexes = self.train_index_array[
+                self.pointer: self.pointer + self.batch_size]
+                
             data_indexes = batch_indexes[:, None] + np.arange(self.time_steps)
             
-            pointer += batch_size
+            self.pointer += self.batch_size
 
             batch_feature = self.train_features[:, data_indexes]
             batch_event_matrix = self.train_event_matrix[data_indexes]
@@ -182,6 +183,11 @@ class DataGenerator(object):
             
     def generate_validate(self, data_type, max_validate_num=None):
         '''Generate feature and targets of a single audio file. 
+        
+        Args:
+          data_type: 'train' | 'validate'
+          max_validate_num: None | int, maximum iteration to run to speed up 
+              evaluation
         
         Returns:
           batch_data_dict: dict containing feature, event, elevation and azimuth
@@ -207,6 +213,9 @@ class DataGenerator(object):
         validate_num = len(feature_names)
         
         for n in range(validate_num):
+            if n == max_validate_num:
+                break
+            
             name = os.path.splitext(feature_names[n])[0]
             feature = features_list[n]
             event_matrix = event_matrix_list[n]
@@ -214,16 +223,18 @@ class DataGenerator(object):
             azimuth_matrix = azimuth_matrix_list[n]
             
             feature = self.transform(feature)
-            
+
             batch_data_dict = {
                 'name': name, 
-                'feature': feature[:, None, :, :], 
-                'event': event_matrix[None, :, :], 
-                'elevation': elevation_matrix[None, :, :], 
-                'azimuth': azimuth_matrix[None, :, :]}
+                'feature': feature[:, None, :, :], # (channels_num, batch_size=1, frames_num, mel_bins)
+                'event': event_matrix[None, :, :], # (batch_size=1, frames_num, mel_bins)
+                'elevation': elevation_matrix[None, :, :], # (batch_size=1, frames_num, mel_bins)
+                'azimuth': azimuth_matrix[None, :, :]   # (batch_size=1, frames_num, mel_bins)
+                }
+            '''The None above indicates using an entire audio recording as 
+            input and batch_size=1 in inference'''
                 
             yield batch_data_dict
-            
             
     def transform(self, x):
         return scale(x, self.scalar['mean'], self.scalar['std'])

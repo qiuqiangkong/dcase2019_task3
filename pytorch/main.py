@@ -16,9 +16,10 @@ import torch.optim as optim
 from utilities import (create_folder, get_filename, create_logging, 
     load_scalar, calculate_metrics)
 from data_generator import DataGenerator
-from models import Cnn_9layers
+from models import (Cnn_5layers_AvgPooling, Cnn_9layers_AvgPooling, 
+    Cnn_9layers_MaxPooling, Cnn_13layers_AvgPooling)
 from losses import event_spatial_loss
-from evaluate import Evaluator
+from evaluate import Evaluator, StatisticsContainer
 from pytorch_utils import move_data_to_gpu, forward
 import config
 
@@ -30,9 +31,9 @@ def train(args):
       dataset_dir: string, directory of dataset
       workspace: string, directory of workspace
       audio_type: 'foa' | 'mic'
-      holdout_fold: '1' | '2' | '3' | '4' | 'none', where -1 indicates using 
-          all data without validation for training
-      model_type: string, e.g. 'Cnn_9layers'
+      holdout_fold: '1' | '2' | '3' | '4' | 'none', set to none if using all 
+        data without validation to train
+      model_type: string, e.g. 'Cnn_9layers_AvgPooling'
       batch_size: int
       cuda: bool
       mini_data: bool, set True for debugging on a small part of data
@@ -52,7 +53,7 @@ def train(args):
     mel_bins = config.mel_bins
     frames_per_second = config.frames_per_second
     classes_num = config.classes_num
-    max_validate_num = 10   # Number of audio recordings to validate
+    max_validate_num = None # Number of audio recordings to validate
     reduce_lr = True        # Reduce learning rate after several iterations
     
     # Paths
@@ -72,19 +73,27 @@ def train(args):
         'dev', frames_per_second, mel_bins), 'scalar.h5')
         
     checkpoints_dir = os.path.join(workspace, 'checkpoints', filename, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
+        '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 
         'dev', frames_per_second, mel_bins), model_type, 
         'holdout_fold={}'.format(holdout_fold))
     create_folder(checkpoints_dir)
     
+    # All folds result should write to the same directory
     temp_submissions_dir = os.path.join(workspace, '_temp', 'submissions', filename, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
-        'dev', frames_per_second, mel_bins))
+        '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 
+        'dev', frames_per_second, mel_bins), model_type)
     create_folder(temp_submissions_dir)
     
+    validate_statistics_path = os.path.join(workspace, 'statistics', filename, 
+        '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 
+        'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold), 
+        model_type, 'validate_statistics.pickle')
+    create_folder(os.path.dirname(validate_statistics_path))
+    
     logs_dir = os.path.join(args.workspace, 'logs', filename, args.mode, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
-        'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold))
+        '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 'dev', 
+        frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold), 
+        model_type)
     create_logging(logs_dir, filemode='w')
     logging.info(args)
         
@@ -115,6 +124,9 @@ def train(args):
         data_generator=data_generator, 
         cuda=cuda)
 
+    # Statistics
+    validate_statistics_container = StatisticsContainer(validate_statistics_path)
+
     train_bgn_time = time.time()
     iteration = 0
 
@@ -122,24 +134,31 @@ def train(args):
     for batch_data_dict in data_generator.generate_train():
                  
         # Evaluate
-        if iteration % 100 == 0:
+        if iteration % 200 == 0:
 
             logging.info('------------------------------------')
             logging.info('Iteration: {}'.format(iteration))
 
             train_fin_time = time.time()
-            evaluator.evaluate(
+            
+            '''
+            # Uncomment for evaluating on training dataset
+            train_statistics = evaluator.evaluate(
                 data_type='train', 
                 metadata_dir=metadata_dir, 
                 submissions_dir=temp_submissions_dir, 
                 max_validate_num=max_validate_num)
-
+            '''
+            
             if holdout_fold != 'none':
-                evaluator.evaluate(
+                validate_statistics = evaluator.evaluate(
                     data_type='validate', 
                     metadata_dir=metadata_dir, 
                     submissions_dir=temp_submissions_dir, 
                     max_validate_num=max_validate_num)
+                    
+                validate_statistics_container.append_and_dump(
+                    iteration, validate_statistics)
 
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time
@@ -197,10 +216,10 @@ def inference_validation(args):
       dataset_dir: string, directory of dataset
       workspace: string, directory of workspace
       audio_type: 'foa' | 'mic'
-      holdout_fold: '1' | '2' | '3' | '4' | 'none', where -1 indicates using 
-          all data without validation for training
-      model_type: string, e.g. 'Cnn_9layers'
-      iteration: int
+      holdout_fold: '1' | '2' | '3' | '4' | 'none', where 'none' represents
+          summary and print results of all folds 1, 2, 3 and 4. 
+      model_type: string, e.g. 'Cnn_9layers_AvgPooling'
+      iteration: int, load model of this iteration
       batch_size: int
       cuda: bool
       visualize: bool
@@ -233,18 +252,19 @@ def inference_validation(args):
     metadata_dir = os.path.join(dataset_dir, 'metadata_dev')
 
     submissions_dir = os.path.join(workspace, 'submissions', filename, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
-        'dev', frames_per_second, mel_bins), 'iteration={}'.format(iteration))
+        '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 'dev', 
+        frames_per_second, mel_bins), model_type, 'iteration={}'.format(iteration))
     create_folder(submissions_dir)
     
     logs_dir = os.path.join(args.workspace, 'logs', filename, args.mode, 
-        '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, prefix, audio_type, 
-        'dev', frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold))
+        '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 'dev', 
+        frames_per_second, mel_bins), 'holdout_fold={}'.format(holdout_fold), 
+        model_type)
     create_logging(logs_dir, filemode='w')
     logging.info(args)
 
     # Inference and calculate metrics for a fold
-    if holdout_fold != -1:
+    if holdout_fold != 'none':
         
         features_dir = os.path.join(workspace, 'features', 
             '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 
@@ -255,10 +275,11 @@ def inference_validation(args):
             'dev', frames_per_second, mel_bins), 'scalar.h5')
     
         checkoutpoint_path = os.path.join(workspace, 'checkpoints', filename, 
-            '{}_{}{}_{}_logmel_{}frames_{}melbins'.format(model_type, '', audio_type, 
+            '{}{}_{}_logmel_{}frames_{}melbins'.format(prefix, audio_type, 
             'dev', frames_per_second, mel_bins), model_type, 
-            'holdout_fold={}'.format(holdout_fold), '{}_iterations.pth'.format(iteration))
-            
+            'holdout_fold={}'.format(holdout_fold), 
+            '{}_iterations.pth'.format(iteration))
+    
         # Load scalar
         scalar = load_scalar(scalar_path)
         
@@ -308,37 +329,39 @@ def inference_validation(args):
         
         logging.info('Metrics of {} files: '.format(len(prediction_names)))
         for key in metrics.keys():
-            logging.info('    {:<20} {:.3f}'.format(key + ' :', metrics[key]))
-    
+            logging.info('    {:<20} {:.3f}'.format(key + ' :', metrics[key]))    
     
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
     subparsers = parser.add_subparsers(dest='mode')
 
+    # Train
     parser_train = subparsers.add_parser('train')
-    parser_train.add_argument('--dataset_dir', type=str, required=True)
-    parser_train.add_argument('--workspace', type=str, required=True)
+    parser_train.add_argument('--dataset_dir', type=str, required=True, help='Directory of dataset.')
+    parser_train.add_argument('--workspace', type=str, required=True, help='Directory of your workspace.')
     parser_train.add_argument('--audio_type', type=str, choices=['foa', 'mic'], required=True)
     parser_train.add_argument('--holdout_fold', type=str, choices=['1', '2', '3', '4', 'none'], required=True, 
-        help='Holdout fold. Set to -1 if using all data without validation to train. ')
-    parser_train.add_argument('--model_type', type=str, required=True)
+        help='Holdout fold. Set to none if using all data without validation to train. ')
+    parser_train.add_argument('--model_type', type=str, required=True, help='E.g., Cnn_9layers_AvgPooling.')
     parser_train.add_argument('--batch_size', type=int, required=True)
     parser_train.add_argument('--cuda', action='store_true', default=False)
-    parser_train.add_argument('--mini_data', action='store_true', default=False)
+    parser_train.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
     
+    # Inference validation data
     parser_inference_validation = subparsers.add_parser('inference_validation')
-    parser_inference_validation.add_argument('--dataset_dir', type=str, required=True)
-    parser_inference_validation.add_argument('--workspace', type=str, required=True)
+    parser_inference_validation.add_argument('--dataset_dir', type=str, required=True, help='Directory of dataset.')
+    parser_inference_validation.add_argument('--workspace', type=str, required=True, help='Directory of your workspace.')
     parser_inference_validation.add_argument('--audio_type', type=str, choices=['foa', 'mic'], required=True)
     parser_inference_validation.add_argument('--holdout_fold', type=str, choices=['1', '2', '3', '4', 'none'], required=True)
-    parser_inference_validation.add_argument('--model_type', type=str, required=True)
-    parser_inference_validation.add_argument('--iteration', type=int, required=True)
+    parser_inference_validation.add_argument('--model_type', type=str, required=True, help='E.g., Cnn_9layers_AvgPooling.')
+    parser_inference_validation.add_argument('--iteration', type=int, required=True, help='Load model of this iteration.')
     parser_inference_validation.add_argument('--batch_size', type=int, required=True)
     parser_inference_validation.add_argument('--cuda', action='store_true', default=False)
-    parser_inference_validation.add_argument('--visualize', action='store_true', default=False)
-    parser_inference_validation.add_argument('--mini_data', action='store_true', default=False)
+    parser_inference_validation.add_argument('--visualize', action='store_true', default=False, help='Visualize log mel spectrogram, prediction and reference')
+    parser_inference_validation.add_argument('--mini_data', action='store_true', default=False, help='Set True for debugging on a small part of data.')
     
+    # Parse arguments
     args = parser.parse_args()
     args.filename = get_filename(__file__)
 

@@ -7,7 +7,6 @@ fmax = 14000    # Hz
 
 frames_per_second = sample_rate // hop_size
 time_steps = frames_per_second * 10     # 10-second log mel spectrogram as input
-
 submission_frames_per_second = 50   # DCASE2019 Task3 submission format
 
 # The label configuration is the same as https://github.com/sharathadavanne/seld-dcase2019
