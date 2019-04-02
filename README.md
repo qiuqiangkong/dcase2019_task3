@@ -13,7 +13,7 @@ The statistic of the data is shown below:
 
 The log mel spectrogram of the scenes are shown below:
 
-<img src="appendixes/split1_ir0_ov1_7_ref.png">
+<img src="appendixes/split1_ir0_ov1_1_ref.png">
 
 ## Run the code
 
@@ -88,7 +88,7 @@ Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task3/models/main/Cnn_9lay
 
 **Validation result on 400 audio files**
 
-<img src="appendixes/results.png" width="400">
+<img src="appendixes/results.png" width="500">
 
 **Plot results over different iterations**
 
@@ -96,7 +96,7 @@ Model saved to /vol/vssp/msos/qk/workspaces/dcase2019_task3/models/main/Cnn_9lay
 
 **Visualization the prediction**
 
-<img src="appendixes/split1_ir0_ov1_7_prediction.png">
+<img src="appendixes/split1_ir0_ov1_1_pred.png">
 
 ## Summary
 This codebase provides a convolutional neural network (CNN) for DCASE 2019 challenge Task 3 Sound Event Localization and Detection. 
